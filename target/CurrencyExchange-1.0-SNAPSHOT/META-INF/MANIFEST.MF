@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
 Created-By: IntelliJ IDEA
 Built-By: faust
-Build-Jdk: Oracle OpenJDK 22.0.1
+Build-Jdk: GraalVM 23.0.5 - Java 17.0.12
 

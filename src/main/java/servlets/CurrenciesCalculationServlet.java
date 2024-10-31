@@ -1,26 +1,31 @@
 package servlets;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import exceptions.DatabaseException;
+import exceptions.NotFoundException;
 import model.ExchangeRate;
-import model.response.ErrorResponse;
 import model.response.ExchangeResponse;
+import dao.JdbcCurrencyConnection;
+import dao.JdbcExchangeConnection;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
-import service.JdbcCurrencyConnection;
-import service.JdbcExchangeConnection;
+import utils.ParametersValidity;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.sql.SQLException;
 import java.util.Optional;
 
-import static jakarta.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-import static jakarta.servlet.http.HttpServletResponse.SC_NOT_FOUND;
 
 @WebServlet("/exchange")
 public class CurrenciesCalculationServlet extends HttpServlet {
     private final JdbcCurrencyConnection currencyConnection = new JdbcCurrencyConnection();
     private final JdbcExchangeConnection exchangeConnection = new JdbcExchangeConnection();
+    private final ParametersValidity parametersValidity = new ParametersValidity();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public CurrenciesCalculationServlet() throws SQLException {
@@ -28,46 +33,42 @@ public class CurrenciesCalculationServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String baseCurrency = request.getParameter("from");
-        String targetCurrency = request.getParameter("to");
-        double amount = Double.parseDouble(request.getParameter("amount"));
+        String baseCurrencyCode = request.getParameter("from");
+        String targetCurrencyCode = request.getParameter("to");
+        BigDecimal amount = BigDecimal.valueOf(Double.parseDouble(request.getParameter("amount")));
+        parametersValidity.validateCurrencies(baseCurrencyCode, targetCurrencyCode);
+        parametersValidity.validateAmount(amount);
         try {
-            Optional<ExchangeRate> exchangeRateOptional = exchangeConnection.findByCodes(baseCurrency, targetCurrency);
-            Optional<ExchangeRate> reversedExchangeRateOptional = exchangeConnection.findByCodes(targetCurrency, baseCurrency);
+            Optional<ExchangeRate> exchangeRateOptional = exchangeConnection.findByCodes(baseCurrencyCode, targetCurrencyCode);
+            Optional<ExchangeRate> reversedExchangeRateOptional = exchangeConnection.findByCodes(targetCurrencyCode, baseCurrencyCode);
             if (exchangeRateOptional.isEmpty() && reversedExchangeRateOptional.isEmpty()) {
-                processUsdBaseExchange(response, baseCurrency, targetCurrency, amount);
+                processUsdBaseExchange(response, baseCurrencyCode, targetCurrencyCode, amount);
             } else {
-                double rate = 0;
+                BigDecimal rate = BigDecimal.ZERO;
                 if (exchangeRateOptional.isPresent()) {
                     rate = exchangeRateOptional.get().getRate();
                 }
                 if (reversedExchangeRateOptional.isPresent()){
-                    rate = 1 / reversedExchangeRateOptional.get().getRate();
+                    rate = BigDecimal.ONE.divide(reversedExchangeRateOptional.get().getRate(), MathContext.DECIMAL128);
                 }
-                processSuccessfulExchange(response, baseCurrency, targetCurrency, amount, rate);
+                processSuccessfulExchange(response, baseCurrencyCode, targetCurrencyCode, amount, rate);
             }
         } catch (SQLException e) {
-            response.setStatus(SC_INTERNAL_SERVER_ERROR);
-            ErrorResponse errorResponse = new ErrorResponse(SC_INTERNAL_SERVER_ERROR,
-                    "There is a problem with database. Please, try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
+            throw new DatabaseException("There is a problem with database.");
         }
     }
 
-    private void processUsdBaseExchange(HttpServletResponse response, String baseCurrencyCode, String targetCurrencyCode, double amount) throws IOException, SQLException {
-        double usdExchangeRate = exchangeConnection.findRateByUsdBase(baseCurrencyCode, targetCurrencyCode);
-        if (usdExchangeRate != 0) {
+    private void processUsdBaseExchange(HttpServletResponse response, String baseCurrencyCode, String targetCurrencyCode, BigDecimal amount) throws IOException, SQLException {
+        BigDecimal usdExchangeRate = exchangeConnection.findRateByUsdBase(baseCurrencyCode, targetCurrencyCode);
+        if (!usdExchangeRate.equals(BigDecimal.ZERO)) {
             processSuccessfulExchange(response, baseCurrencyCode, targetCurrencyCode, amount, usdExchangeRate);
         } else {
-            response.setStatus(SC_NOT_FOUND);
-            ErrorResponse errorResponse = new ErrorResponse(SC_NOT_FOUND,
-                    "There is no such exchange rate for these currencies. Please try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
+            throw new NotFoundException("There is no such exchange rate for these currencies.");
         }
     }
 
-    private void processSuccessfulExchange(HttpServletResponse response, String baseCurrency, String targetCurrency, double rate, double amount) throws IOException, SQLException {
-        double convertedAmount = amount * rate;
+    private void processSuccessfulExchange(HttpServletResponse response, String baseCurrency, String targetCurrency, BigDecimal rate, BigDecimal amount) throws IOException, SQLException {
+        BigDecimal convertedAmount = amount.multiply(rate, MathContext.DECIMAL128);
         ExchangeResponse exchangeResponse = new ExchangeResponse(
                 currencyConnection.findByCode(baseCurrency),
                 currencyConnection.findByCode(targetCurrency),

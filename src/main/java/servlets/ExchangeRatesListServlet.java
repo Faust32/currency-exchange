@@ -1,15 +1,22 @@
 package servlets;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import exceptions.AlreadyExistsException;
+import exceptions.DatabaseException;
+import exceptions.NotFoundException;
 import model.ExchangeRate;
 import model.response.ErrorResponse;
+import dao.JdbcCurrencyConnection;
+import dao.JdbcExchangeConnection;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
-import service.JdbcCurrencyConnection;
-import service.JdbcExchangeConnection;
+import utils.ParametersValidity;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -21,6 +28,7 @@ import static jakarta.servlet.http.HttpServletResponse.*;
 public class ExchangeRatesListServlet extends HttpServlet {
     private final JdbcCurrencyConnection currencyConnection = new JdbcCurrencyConnection();
     private final JdbcExchangeConnection exchangeConnection = new JdbcExchangeConnection();
+    private final ParametersValidity parametersValidity = new ParametersValidity();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ExchangeRatesListServlet() throws SQLException {
@@ -32,10 +40,7 @@ public class ExchangeRatesListServlet extends HttpServlet {
             List<ExchangeRate> exchangeRates = exchangeConnection.findAll();
             objectMapper.writeValue(response.getWriter(), exchangeRates);
         } catch (SQLException e) {
-            response.setStatus(SC_INTERNAL_SERVER_ERROR);
-            ErrorResponse errorResponse = new ErrorResponse(SC_INTERNAL_SERVER_ERROR,
-                    "There is a problem with database. Please, try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
+            throw new DatabaseException("There is a problem with database.");
         }
     }
 
@@ -43,41 +48,14 @@ public class ExchangeRatesListServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String baseCurrencyCode = request.getParameter("baseCurrencyCode");
         String targetCurrencyCode = request.getParameter("targetCurrencyCode");
-        double rate = Double.parseDouble(request.getParameter("rate"));
-
-        if (baseCurrencyCode == null || baseCurrencyCode.isBlank()) {
-            response.setStatus(SC_BAD_REQUEST);
-            ErrorResponse errorResponse = new ErrorResponse(SC_BAD_REQUEST,
-                    "There is no Base Currency parameter in the request. Please try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
-            return;
-        }
-
-        if (targetCurrencyCode == null || targetCurrencyCode.isBlank()) {
-            response.setStatus(SC_BAD_REQUEST);
-            ErrorResponse errorResponse = new ErrorResponse(SC_BAD_REQUEST,
-                    "There is no Target Currency parameter in the request. Please try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
-            return;
-        }
-
-        if (Double.isNaN(rate) || rate <= 0) {
-            response.setStatus(SC_BAD_REQUEST);
-            ErrorResponse errorResponse = new ErrorResponse(SC_BAD_REQUEST,
-                    "There is no rate parameter or it's incorrect in the request. Please try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
-            return;
-        }
+        BigDecimal rate = BigDecimal.valueOf(Double.parseDouble(request.getParameter("rate")));
+        parametersValidity.validateCurrencies(baseCurrencyCode, targetCurrencyCode);
+        parametersValidity.validateRate(rate);
         try {
             Optional<ExchangeRate> existingRate = exchangeConnection.findByCodes(baseCurrencyCode, targetCurrencyCode);
             Optional<ExchangeRate> reverseRate = exchangeConnection.findByCodes(targetCurrencyCode, baseCurrencyCode);
             if (existingRate.isPresent() || reverseRate.isPresent()) {
-                response.setStatus(SC_CONFLICT);
-                objectMapper.writeValue(response.getWriter(), new ErrorResponse(
-                        SC_CONFLICT,
-                        "Exchange rate for the specified currency pair or its reverse already exists. Please try again later."
-                ));
-                return;
+                throw new AlreadyExistsException("The exchange rate for this currencies already exists.");
             }
             ExchangeRate exchangeRate = new ExchangeRate(
                     0,
@@ -89,17 +67,10 @@ public class ExchangeRatesListServlet extends HttpServlet {
             exchangeRate.setID(id);
             objectMapper.writeValue(response.getWriter(), exchangeRate);
         } catch (NoSuchElementException e) {
-            response.setStatus(SC_NOT_FOUND);
-            objectMapper.writeValue(response.getWriter(), new ErrorResponse(
-                    SC_NOT_FOUND,
-                    "One or both currencies for which you are trying to add an exchange rate does not exist in the database. Please try again later."
-            ));
+            throw new NotFoundException("One or both currencies for the exchange rate do not exist in database.");
         }
         catch (SQLException e) {
-            response.setStatus(SC_INTERNAL_SERVER_ERROR);
-            ErrorResponse errorResponse = new ErrorResponse(SC_INTERNAL_SERVER_ERROR,
-                    "There is a problem with database. Please, try again later.");
-            objectMapper.writeValue(response.getWriter(), errorResponse);
+            throw new DatabaseException("There is a problem with database.");
         }
     }
 

@@ -77,6 +77,7 @@ public class JdbcExchangeConnection implements CrudManager<ExchangeRate>{
             ResultSet resultSet = preparedStatement.getGeneratedKeys();
             resultSet.next();
             connect.commit();
+            connect.setAutoCommit(true);
             return resultSet.getInt(1);
         }
     }
@@ -99,6 +100,7 @@ public class JdbcExchangeConnection implements CrudManager<ExchangeRate>{
             preparedStatement.setInt(3, entity.getTargetCurrency().getID());
             preparedStatement.executeUpdate();
             connect.commit();
+            connect.setAutoCommit(true);
         }
     }
 
@@ -139,7 +141,7 @@ public class JdbcExchangeConnection implements CrudManager<ExchangeRate>{
                 currencies currency2 ON er.target_id = currency2.id
             WHERE
                 currency1.code = ? AND currency2.code = ?
-            """;
+                """;
         try (PreparedStatement preparedStatement = connect.prepareStatement(sql)) {
             preparedStatement.setString(1, baseCode);
             preparedStatement.setString(2, targetCode);
@@ -160,28 +162,21 @@ public class JdbcExchangeConnection implements CrudManager<ExchangeRate>{
 
         if (baseToUsdRate.isPresent()) {
             if (targetToUsdRate.isPresent()) {
-                return formatter.roundToTwoDecimalPlaces(
-                        baseToUsdRate.get().getRate()
-                                .divide(targetToUsdRate.get().getRate(), MathContext.DECIMAL128)
-                );
-            } else if (usdToTargetRate.isPresent()) {
-                return formatter.roundToTwoDecimalPlaces(
-                        baseToUsdRate.get().getRate()
-                                .multiply(usdToTargetRate.get().getRate())
-                );
+                return formatter.roundToTwoDecimalPlaces((baseToUsdRate.get())
+                        .getRate().divide((targetToUsdRate.get()).getRate(), MathContext.DECIMAL128));
+            }
+            if (usdToTargetRate.isPresent()) {
+                return formatter.roundToTwoDecimalPlaces((baseToUsdRate.get())
+                        .getRate().multiply((usdToTargetRate.get()).getRate()));
             }
         } else if (usdToBaseRate.isPresent()) {
             if (targetToUsdRate.isPresent()) {
-                return formatter.roundToTwoDecimalPlaces(
-                        targetToUsdRate.get().getRate()
-                                .divide(usdToBaseRate.get().getRate(), MathContext.DECIMAL128)
-                );
-            } else if (usdToTargetRate.isPresent()) {
-                return formatter.roundToTwoDecimalPlaces(
-                        BigDecimal.ONE
-                                .divide(usdToBaseRate.get().getRate()
-                                        .multiply(usdToTargetRate.get().getRate()), MathContext.DECIMAL128)
-                );
+                return formatter.roundToTwoDecimalPlaces((targetToUsdRate.get())
+                        .getRate().divide((usdToBaseRate.get()).getRate(), MathContext.DECIMAL128));
+            }
+            if (usdToTargetRate.isPresent()) {
+                return formatter.roundToTwoDecimalPlaces(BigDecimal.ONE.divide((usdToBaseRate.get())
+                        .getRate().multiply((usdToTargetRate.get()).getRate()), MathContext.DECIMAL128));
             }
         }
         return BigDecimal.ZERO;

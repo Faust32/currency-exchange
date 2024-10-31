@@ -2,7 +2,6 @@ package utils;
 
 import exceptions.InvalidInputException;
 import model.Currency;
-import model.ExchangeRate;
 
 import java.math.BigDecimal;
 import java.util.regex.Pattern;
@@ -26,32 +25,36 @@ public class ParametersValidity {
         }
     }
 
-    public void validateExchangeRate(ExchangeRate exchangeRate) {
-        validateCurrencies(exchangeRate.getBaseCurrency().getCode(), exchangeRate.getTargetCurrency().getCode());
-        validateRate(exchangeRate.getRate());
-    }
-
     private void validateFullName(String fullName) {
         if (fullName == null || fullName.isEmpty() || !CURRENCY_FULLNAME_PATTERN.matcher(fullName).matches()) {
-            throw new InvalidInputException("Invalid full name");
+            throw new InvalidInputException("Invalid full name.");
         }
     }
 
     public void validateCode(String code) {
         if (code == null || code.isEmpty() || !CURRENCY_CODE_PATTERN.matcher(code).matches()) {
-            throw new InvalidInputException("Invalid code");
+            throw new InvalidInputException("Invalid code.");
         }
     }
 
     private void validateSymbol(String sign) {
         if (sign == null || sign.isEmpty() || !CURRENCY_SIGN_PATTERN.matcher(sign).matches()) {
-            throw new InvalidInputException("Invalid sign");
+            throw new InvalidInputException("Invalid sign.");
         }
     }
 
-    private void validateRate(BigDecimal rate) {
-        if (rate == null || rate.doubleValue() <= 0) {
-            throw new InvalidInputException("Invalid rate");
+    private void validatePositive(BigDecimal value, String fieldName) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidInputException("Invalid " + fieldName + ".");
         }
     }
+
+    public void validateRate(BigDecimal rate) {
+        validatePositive(rate, "rate");
+    }
+
+    public void validateAmount(BigDecimal amount) {
+        validatePositive(amount, "amount");
+    }
+
 }
