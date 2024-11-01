@@ -117,10 +117,11 @@ REST API для описания валют и обменных курсов. П
 - POST `/exchangeRates`
 
 Добавление нового обменного курса в базу. Данные передаются в теле запроса в виде полей формы (`x-www-form-urlencoded`). Поля формы - `baseCurrencyCode`, `targetCurrencyCode`, `rate`. Пример полей формы:
+
     - `baseCurrencyCode` - USD
     - `targetCurrencyCode` - EUR
     - `rate` - 0.99
-
+    
 Пример ответа - JSON представление вставленной в базу записи, включая её ID:
 
 ```json
