@@ -66,12 +66,13 @@ public class ExchangeRateServlet extends HttpServlet {
         if (stringRate.isEmpty()) {
             throw new NotFoundException("There is no rate parameter in the request.");
         }
-        double rate = Double.parseDouble(stringRate);
+        BigDecimal rate = BigDecimal.valueOf(Double.parseDouble(stringRate));
+        parametersValidity.validateRate(rate);
         try {
             Optional<ExchangeRate> exchangeRateOptional = exchangeConnection.findByCodes(baseCurrencyCode, targetCurrencyCode);
             if (exchangeRateOptional.isPresent()) {
                 ExchangeRate exchangeRate = exchangeRateOptional.get();
-                exchangeRate.setRate(BigDecimal.valueOf(rate));
+                exchangeRate.setRate(rate);
                 exchangeConnection.update(exchangeRate);
                 objectMapper.writeValue(response.getWriter(), exchangeRate);
             } else {
