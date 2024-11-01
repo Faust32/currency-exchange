@@ -1,5 +1,0 @@
-Manifest-Version: 1.0
-Created-By: IntelliJ IDEA
-Built-By: faust
-Build-Jdk: GraalVM 23.0.5 - Java 17.0.12
-
