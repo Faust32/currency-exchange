@@ -10,8 +10,6 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1f0f4faa-41b7-4b8d-aea5-89a083fb29ee" name="Changes" comment="fix 1.2">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/Dockerfile" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/webapp" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/webapp/js/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/webapp/js/app.js" afterDir="false" />
     </list>
@@ -29,7 +27,7 @@
     </option>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/src/main/webapp" />
     <option name="RESET_MODE" value="MIXED" />
     <option name="ROOT_SYNC" value="SYNC" />
   </component>
@@ -309,6 +307,7 @@
       <workItem from="1730363095794" duration="1274000" />
       <workItem from="1730371717830" duration="3282000" />
       <workItem from="1730440352120" duration="1062000" />
+      <workItem from="1730447648298" duration="551000" />
     </task>
     <task id="LOCAL-00001" summary="fix 1.2">
       <option name="closed" value="true" />
